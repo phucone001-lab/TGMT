@@ -56,6 +56,8 @@ class VideoApp:
                 self.open_balloon_image(video_path)
             elif initial_mode == "plate":
                 self.open_plate_image(video_path)
+            elif initial_mode == "grayscale":
+                self.open_grayscale_image(video_path)
             else:
                 self.open_video(video_path)
         self.root.after(15, self.update_frame)
@@ -194,6 +196,12 @@ class VideoApp:
             mode_buttons, "Tách ký tự biển số", lambda: self.set_mode("plate")
         )
         self.plate_mode_button.grid(row=1, column=1, sticky="ew", padx=(4, 0), pady=2)
+        self.grayscale_mode_button = self._make_button(
+            mode_buttons, "Ảnh màu xám", lambda: self.set_mode("grayscale")
+        )
+        self.grayscale_mode_button.grid(
+            row=2, column=0, columnspan=2, sticky="ew", pady=2
+        )
 
         self.action_area = tk.Frame(controls, bg="#202823")
         self.action_area.pack(side="right", anchor="s")
@@ -296,6 +304,9 @@ class VideoApp:
             **(active if mode == "balloons" else inactive)
         )
         self.plate_mode_button.configure(**(active if mode == "plate" else inactive))
+        self.grayscale_mode_button.configure(
+            **(active if mode == "grayscale" else inactive)
+        )
 
         self.rotate_actions.pack_forget()
         self.face_actions.pack_forget()
@@ -317,6 +328,12 @@ class VideoApp:
             )
             self.status_var.set("Chọn ảnh để đếm bóng bay")
             self._show_placeholder("Chọn ảnh để đếm bóng bay")
+        elif mode == "grayscale":
+            self.open_button.configure(
+                text="Mở ảnh", command=self.choose_grayscale_image
+            )
+            self.status_var.set("Chọn ảnh để chuyển sang màu xám")
+            self._show_placeholder("Chọn ảnh để chuyển sang màu xám")
         else:
             self.plate_actions.pack(side="right")
             self.open_button.configure(
@@ -325,7 +342,7 @@ class VideoApp:
             self.status_var.set("Chọn ảnh biển số để tách ký tự")
             self._show_placeholder("Chọn ảnh biển số để bắt đầu")
 
-        if mode in ("balloons", "plate"):
+        if mode in ("balloons", "plate", "grayscale"):
             if self.capture is not None:
                 self.capture.release()
                 self.capture = None
@@ -366,6 +383,27 @@ class VideoApp:
         )
         if path:
             self.open_balloon_image(path)
+
+    def choose_grayscale_image(self):
+        path = filedialog.askopenfilename(
+            title="Chọn ảnh để chuyển sang màu xám",
+            filetypes=(
+                ("Ảnh", "*.jpg *.jpeg *.png *.bmp *.webp"),
+                ("Tất cả file", "*.*"),
+            ),
+        )
+        if path:
+            self.open_grayscale_image(path)
+
+    def open_grayscale_image(self, path):
+        image = cv2.imread(path)
+        if image is None:
+            self.status_var.set(f"Không mở được ảnh: {path}")
+            return
+
+        grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        self._show_frame(grayscale_image)
+        self.status_var.set(f"Đã chuyển ảnh sang màu xám  |  {Path(path).name}")
 
     def open_balloon_image(self, path):
         image = cv2.imread(path)
@@ -1017,13 +1055,15 @@ class VideoApp:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Phát và xử lý video.")
-    parser.add_argument("video", nargs="?", help="Đường dẫn đến file video")
+    parser = argparse.ArgumentParser(description="Xem và xử lý video, ảnh.")
+    parser.add_argument(
+        "video", nargs="?", help="Đường dẫn đến video hoặc ảnh theo chế độ đã chọn"
+    )
     parser.add_argument(
         "--mode",
-        choices=("rotate", "faces", "balloons", "plate"),
+        choices=("rotate", "faces", "balloons", "plate", "grayscale"),
         default="rotate",
-        help="Chế độ mở đầu: rotate, faces, balloons hoặc plate",
+        help="Chế độ mở đầu: rotate, faces, balloons, plate hoặc grayscale",
     )
     args = parser.parse_args()
 
